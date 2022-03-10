@@ -19,8 +19,6 @@ for id in range(n):
     c = next(color)
     
     ax = fig.gca(projection = '3d')
-    #ax.plot_surface(X, Y, Z, cmap=c)
-
     surf = ax.plot_surface(X, Y, Z, label='$\delta$ = '+str(id), color=c)
 
     #this is to solve the legend error (error : 'AttributeError: 'Poly3DCollection' object has no attribute '_edgecolors2d'')

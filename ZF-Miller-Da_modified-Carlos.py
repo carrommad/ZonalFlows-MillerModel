@@ -26,12 +26,11 @@ from datetime import datetime
 
 # datetime object containing current date and time
 now = datetime.now()
- 
-print("now =", now)
+#print("now =", now)
 
 # dd/mm/YY-H:M:S
 dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
-print("date and time =", dt_string)	
+print("Date-Time =", dt_string)	
 
 #t0=time.time()
 #t1=time.time()
@@ -280,7 +279,7 @@ def COSU(theta,eps,ka,da,dp,sd,sk,q,s,al):
 # 07-03-2022 Carlos 
 # Loop in parameter: triangularity.
 #-------------------
-Narr=5 #20
+Narr=20
 #Qarr=np.linspace(0.5,5.5,Narr)
 
 # eps (aspect ratio) values to loop
@@ -295,6 +294,10 @@ Darr=np.linspace(da_min,da_max,Narr)
 # data structure
 struct = (Narr, Narr, Narr)
 Data=np.zeros(struct)
+
+# loop counters
+count_now = 0
+count_max = Narr*Narr*Narr
 
 for id_eps in range(Narr):
     eps = Earr[id_eps]
@@ -656,6 +659,11 @@ for id_eps in range(Narr):
             #print('ka  vs. Karr[id_ka] : ' + str(ka)  + ' vs. ' + str(Karr[id_ka]))
             #print('da  vs. Darr[id_da] : ' + str(da)  + ' vs. ' + str(Darr[id_da]))
 
+
+            # Printing process
+            count_now = count_now+1
+            print('Loop process: ' + str(count_now) + '/' + str(count_max))
+
 #-------------------
 # 09-03-2022 Carlos 
 # Plot of safety factor (q) vs. dielectric susceptibility or polarization (1+1.635*Qarr**2/np.sqrt(eps)???)
@@ -723,16 +731,17 @@ if fig3_bool:
 
     color = iter(cm.summer(np.linspace(0, 1, Narr)))
 
+    ax = plt.axes(projection ='3d')
+
     for id_da_plot in range(Narr):
         
         Z = Data[:,:,id_da_plot]
 
         c = next(color)
-
-        ax = fig.gca(projection = '3d')
+        
         surf = ax.plot_surface(X, Y, Z, label='$\delta$ = '+str(Darr[id_da_plot]), color=c)
 
-        #this is to solve the legend error (error : 'AttributeError: 'Poly3DCollection' object has no attribute '_edgecolors2d'')
+        #this is to solve the legend/label error in 3d surface plots (error : 'AttributeError: 'Poly3DCollection' object has no attribute '_edgecolors2d'')
         surf._facecolors2d=surf._facecolor3d
         surf._edgecolors2d=surf._edgecolor3d
 
@@ -742,8 +751,14 @@ if fig3_bool:
     ax.legend() 
 
     #plt.savefig('parametric-study.eps', format='eps')
-    plt.savefig('fig-chi_'+dt_string+'.png', dpi=300)
+    plt.savefig('figures/fig-chi_'+dt_string+'.png', dpi=300)
     #plt.show()
 
 # Saving data (to do)
-#np.savetxt('data-chi_'+dt_string+'.dat', Data)
+np.save('data/data-chi_'+dt_string, Data)
+
+# To load an array
+# load array
+#data = np.loadtxt('data.npy')
+# print the array
+#print(data)
