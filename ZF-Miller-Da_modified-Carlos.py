@@ -703,8 +703,7 @@ if fig2_bool:
     font_prop = font_manager.FontProperties(size=20)
 
     plt.plot(Darr,1/Data, '-',linewidth=2.5, label=r'$\epsilon=%g$'%eps)
-    #plt.plot(Qarr,1+1.635*Qarr**2/np.sqrt(eps), '--',linewidth=2.5, label=r'$\epsilon=%g$'%eps)
-
+    
     plt.xlabel(r'$\delta$',fontdict=font)
     plt.ylabel(r'$\chi^{-1}_{i}$',fontdict=font)
     #plt.title(r'Polarization: Ion-acoustic')
