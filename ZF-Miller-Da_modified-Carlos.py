@@ -22,6 +22,17 @@ import time
 import matplotlib.font_manager as font_manager
 
 
+from datetime import datetime
+
+# datetime object containing current date and time
+now = datetime.now()
+ 
+print("now =", now)
+
+# dd/mm/YY-H:M:S
+dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+print("date and time =", dt_string)	
+
 #t0=time.time()
 #t1=time.time()
 #print (t1-t0)
@@ -42,6 +53,8 @@ import matplotlib.font_manager as font_manager
 #
 # 2) Possible update/enhacement to code:
 #  - Introduce small wavelength effects.
+#
+# 3) Finish "Save data" section.
 ##################################
 
 #-------------------
@@ -61,12 +74,18 @@ param_set = 1
 if param_set == 1:
     
     #r is normalized as epsilon=r/R_{0}, R_0 = 1
-    #eps=0.65/1.46
-    eps=1/3.0
-    #elongation kappa
-    ka=2.0
-    #triangularity delta
+    #eps=0.65/1.46 - (loop variable)
+    #eps=1/3.0
+    eps_min = 0.05
+    eps_max = 0.65
+    #elongation kappa - (loop variable)
+    #ka=2.0
+    ka_min = 1.0
+    ka_max = 2.0
+    #triangularity delta - (loop variable)
     #da=0.22
+    da_min = -0.5
+    da_max = +0.5
     #shafranov shift, usually we take is as a*eps, with a an \mathcal{O}(1) constant,
     dp=0
     #s_{\delta} - (dependent on parameter 'da')
@@ -74,13 +93,13 @@ if param_set == 1:
     #d=arcsin delta  - (dependent on parameter 'da')
     #d=np.arcsin(da)
     #s_{\kappa}=(r/\kappa)\partial_{r}\kappa
-    sk=0.40*0.65/ka
+    #sk=0.40*0.65/ka - (dependent on parameter 'ka')
     #safety factor
     q=1.9
     #magnetic shear
     s=1.8
     #alpha=-q^2 R_{0}\partial_{r}\beta
-    al=0.12*q**2/eps
+    #al=0.12*q**2/eps - (dependent on parameter 'eps')
 
 #-------------------
 # 09-03-2022 Carlos 
@@ -261,345 +280,381 @@ def COSU(theta,eps,ka,da,dp,sd,sk,q,s,al):
 # 07-03-2022 Carlos 
 # Loop in parameter: triangularity.
 #-------------------
-Narr=20
+Narr=5 #20
 #Qarr=np.linspace(0.5,5.5,Narr)
-Darr=np.linspace(-0.5,0.5,Narr)
-Data=np.zeros(Narr)
-for j in range(Narr):
-    #q=Qarr[j]
-    da=Darr[j]
-    d=np.arcsin(da)
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Why don't we define this parameter at the beginning with the rest of the variables?
-    #-------------------
-    sd=0.16*0.65/np.sqrt(1-da**2)
-    #I/B_unit
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.111) of Gyro Technical Guide where we have changed the notation: I := f(r).
-    # - The part "lambda x:" indiciates to the function "integrate.quad" which is the integration variable.
-    #-------------------
-    I=2*np.pi*eps/integrate.quad(lambda x: DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al))/(1+eps*np.cos(x+d*np.sin(x))),0,2*np.pi)[0]
 
-    #B_t
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.112) of Gyro Technical Guide.
-    # - Why don't we use I as input parameter?
-    #-------------------
-    def BT(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        d=np.arcsin(da)
-        return I/(1+eps*np.cos(theta+d*np.sin(theta)))
+# eps (aspect ratio) values to loop
+Earr=np.linspace(eps_min,eps_max,Narr)
 
-    #partial_{\theta} B_{t}
-    def DTBT(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return -I/(R(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*DTR(theta,eps,ka,da,dp,sd,sk,q,s,al)
+# ka (elongation) values to loop
+Karr=np.linspace(ka_min,ka_max,Narr)
 
-    #B_p
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.113) of Gyro Technical Guide.
-    #-------------------
-    def BP(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        d=np.arcsin(da)
-        return eps/(1+eps*np.cos(theta+d*np.sin(theta)))*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/q
+# da (triangularity) values to loop
+Darr=np.linspace(da_min,da_max,Narr)
 
-    #partial_{\theta} B_{p}
-    def DTBP(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return -eps*DTR(theta,eps,ka,da,dp,sd,sk,q,s,al)/(R(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/q+0.5*eps*DTNR2(theta,eps,ka,da,dp,sd,sk,q,s,al)/(R(theta,eps,ka,da,dp,sd,sk,q,s,al)*q*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al)))
+# data structure
+struct = (Narr, Narr, Narr)
+Data=np.zeros(struct)
 
-    #B
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.114) of Gyro Technical Guide.
-    #-------------------
-    def B(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return np.sqrt((BT(theta,eps,ka,da,dp,sd,sk,q,s,al))**2+(BP(theta,eps,ka,da,dp,sd,sk,q,s,al))**2)
+for id_eps in range(Narr):
+    eps = Earr[id_eps]
+    al=0.12*q**2/eps
 
-    #partial_{theta}B
-    def DTB(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return (BP(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTBP(theta,eps,ka,da,dp,sd,sk,q,s,al)+BT(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTBT(theta,eps,ka,da,dp,sd,sk,q,s,al))/B(theta,eps,ka,da,dp,sd,sk,q,s,al)
+    for id_ka in range(Narr):
+        ka = Karr[id_ka]
+        sk=0.40*0.65/ka
 
-    #gsin
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.115) of Gyro Technical Guide.
-    #-------------------
-    def GSIN(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temp=BT(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTB(theta,eps,ka,da,dp,sd,sk,q,s,al)/(B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2/DTL(theta,eps,ka,da,dp,sd,sk,q,s,al)
-        return temp
+        for id_da in range(Narr):
+            #q=Qarr[id_da]
+            da = Darr[id_da]
+            d  = np.arcsin(da)
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Why don't we define this parameter at the beginning with the rest of the variables?
+            # - Because it depends on 'da'.
+            #-------------------
+            sd=0.16*0.65/np.sqrt(1-da**2)
+            #I/B_unit
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.111) of Gyro Technical Guide where we have changed the notation: I := f(r).
+            # - The part "lambda x:" indiciates to the function "integrate.quad" which is the integration variable.
+            #-------------------
+            I=2*np.pi*eps/integrate.quad(lambda x: DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al))/(1+eps*np.cos(x+d*np.sin(x))),0,2*np.pi)[0]
 
-    #gcos1
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.117) of Gyro Technical Guide.
-    #-------------------
-    def GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temp=(BT(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*COSU(theta,eps,ka,da,dp,sd,sk,q,s,al)/R(theta,eps,ka,da,dp,sd,sk,q,s,al)+(BP(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2/RC(theta,eps,ka,da,dp,sd,sk,q,s,al)
-        return temp
+            #B_t
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.112) of Gyro Technical Guide.
+            # - Why don't we use I as input parameter?
+            #-------------------
+            def BT(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                d=np.arcsin(da)
+                return I/(1+eps*np.cos(theta+d*np.sin(theta)))
 
-    #gcos2
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.118) of Gyro Technical Guide.
-    #-------------------
-    def GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        #nonzero in finite beta limit:      
-        temp=-0.5*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/(B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*al/q**2
-        #zero in low beta limit:
-        #temp=0
-        return temp
+            #partial_{\theta} B_{t}
+            def DTBT(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return -I/(R(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*DTR(theta,eps,ka,da,dp,sd,sk,q,s,al)
 
-    #gcos
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.116) of Gyro Technical Guide.
-    #-------------------
-    def GCOS(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al)+GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #B_p
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.113) of Gyro Technical Guide.
+            #-------------------
+            def BP(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                d=np.arcsin(da)
+                return eps/(1+eps*np.cos(theta+d*np.sin(theta)))*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/q
 
-    #usin
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.119) of Gyro Technical Guide.
-    #-------------------
-    def USIN(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return SINU(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #partial_{\theta} B_{p}
+            def DTBP(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return -eps*DTR(theta,eps,ka,da,dp,sd,sk,q,s,al)/(R(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/q+0.5*eps*DTNR2(theta,eps,ka,da,dp,sd,sk,q,s,al)/(R(theta,eps,ka,da,dp,sd,sk,q,s,al)*q*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al)))
 
-    #ucos
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.120) of Gyro Technical Guide.
-    #-------------------
-    def UCOS(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        return BT(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al)*COSU(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #B
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.114) of Gyro Technical Guide.
+            #-------------------
+            def B(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return np.sqrt((BT(theta,eps,ka,da,dp,sd,sk,q,s,al))**2+(BP(theta,eps,ka,da,dp,sd,sk,q,s,al))**2)
 
-    #E1
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.121) of Gyro Technical Guide.
-    #-------------------
-    # - exact expression, time consuming
-    def E1E(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temf=lambda x: 2*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/(R(x,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al)))*BT(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al)*(eps/RC(x,eps,ka,da,dp,sd,sk,q,s,al)-eps/R(x,eps,ka,da,dp,sd,sk,q,s,al)*COSU(x,eps,ka,da,dp,sd,sk,q,s,al))
-        return integrate.quad(temf, 0,theta,limit=2000)[0]
+            #partial_{theta}B
+            def DTB(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return (BP(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTBP(theta,eps,ka,da,dp,sd,sk,q,s,al)+BT(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTBT(theta,eps,ka,da,dp,sd,sk,q,s,al))/B(theta,eps,ka,da,dp,sd,sk,q,s,al)
 
-    #construct the Fourier representation of exact E1, valid to 1e-5
+            #gsin
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.115) of Gyro Technical Guide.
+            #-------------------
+            def GSIN(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temp=BT(theta,eps,ka,da,dp,sd,sk,q,s,al)*DTB(theta,eps,ka,da,dp,sd,sk,q,s,al)/(B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2/DTL(theta,eps,ka,da,dp,sd,sk,q,s,al)
+                return temp
+
+            #gcos1
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.117) of Gyro Technical Guide.
+            #-------------------
+            def GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temp=(BT(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*COSU(theta,eps,ka,da,dp,sd,sk,q,s,al)/R(theta,eps,ka,da,dp,sd,sk,q,s,al)+(BP(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2/RC(theta,eps,ka,da,dp,sd,sk,q,s,al)
+                return temp
+
+            #gcos2
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.118) of Gyro Technical Guide.
+            #-------------------
+            def GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                #nonzero in finite beta limit:      
+                temp=-0.5*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/(B(theta,eps,ka,da,dp,sd,sk,q,s,al))**2*al/q**2
+                #zero in low beta limit:
+                #temp=0
+                return temp
+
+            #gcos
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.116) of Gyro Technical Guide.
+            #-------------------
+            def GCOS(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al)+GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al)
+
+            #usin
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.119) of Gyro Technical Guide.
+            #-------------------
+            def USIN(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return SINU(theta,eps,ka,da,dp,sd,sk,q,s,al)
+
+            #ucos
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.120) of Gyro Technical Guide.
+            #-------------------
+            def UCOS(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                return BT(theta,eps,ka,da,dp,sd,sk,q,s,al)/B(theta,eps,ka,da,dp,sd,sk,q,s,al)*COSU(theta,eps,ka,da,dp,sd,sk,q,s,al)
+
+            #E1
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.121) of Gyro Technical Guide.
+            #-------------------
+            # - exact expression, time consuming
+            def E1E(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temf=lambda x: 2*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/(R(x,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al)))*BT(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al)*(eps/RC(x,eps,ka,da,dp,sd,sk,q,s,al)-eps/R(x,eps,ka,da,dp,sd,sk,q,s,al)*COSU(x,eps,ka,da,dp,sd,sk,q,s,al))
+                return integrate.quad(temf, 0,theta,limit=2000)[0]
+
+            #construct the Fourier representation of exact E1, valid to 1e-5
 
 
-    # - the coefficient of linear component
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Take E1 at the extremes (0,2*\Pi) and compute the slope.
-    #-------------------
-    e1linear=(E1E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E1E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
+            # - the coefficient of linear component
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Take E1 at the extremes (0,2*\Pi) and compute the slope.
+            #-------------------
+            e1linear=(E1E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E1E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
 
-    # - oscillatory component
-    #number of sample point in theta
-    Ntheta=100
-    Theta=np.linspace(0,2*np.pi, Ntheta)
-    Datafe1=np.zeros(Ntheta)
-    for i in range(Ntheta):
-        #-------------------
-        # 07-03-2022 Carlos 
-        # Deviation from the straight line connecting E1 at 0 and at 2*\Pi,
-        # hence "oscillatory component" above.
-        #-------------------
-        Datafe1[i]=E1E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e1linear*Theta[i]
+            # - oscillatory component
+            #number of sample point in theta
+            Ntheta=100
+            Theta=np.linspace(0,2*np.pi, Ntheta)
+            Datafe1=np.zeros(Ntheta)
+            for i in range(Ntheta):
+                #-------------------
+                # 07-03-2022 Carlos 
+                # Deviation from the straight line connecting E1 at 0 and at 2*\Pi,
+                # hence "oscillatory component" above.
+                #-------------------
+                Datafe1[i]=E1E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e1linear*Theta[i]
 
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Given the set of data points (x[i], y[i]), "splrep" determines a smooth spline approximation,
-    # where the separation between x points is not constant.
-    #-------------------
-    sple1=splrep(Theta,Datafe1)
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Given the set of data points (x[i], y[i]), "splrep" determines a smooth spline approximation,
+            # where the separation between x points is not constant.
+            #-------------------
+            sple1=splrep(Theta,Datafe1)
 
-    #-------------------
-    # 07-03-2022 Carlos 
-    # To avoid computing the integral that defines E1 for each \theta, we have decomposed it as:
-    # - A linear component "temp1"
-    # - An oscillatory component "temp2"
-    #-------------------
-    def E1(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        #linear component
-        temp1=e1linear*theta
-        #oscillating components retaind
-        temp2=splev(theta%(2*np.pi),sple1)
-        return temp1+temp2
+            #-------------------
+            # 07-03-2022 Carlos 
+            # To avoid computing the integral that defines E1 for each \theta, we have decomposed it as:
+            # - A linear component "temp1"
+            # - An oscillatory component "temp2"
+            #-------------------
+            def E1(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                #linear component
+                temp1=e1linear*theta
+                #oscillating components retaind
+                temp2=splev(theta%(2*np.pi),sple1)
+                return temp1+temp2
 
-    #E2
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.122) of Gyro Technical Guide. We have 2 versions:
-    # - The exact, and time-consuming, definition 
-    # - And an analogous "linear + oscillatory" decomposition, as in E1, has been made below.
-    #-------------------
-    def E2E(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temf=lambda x: DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/(R(x,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al)))*(B(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al))**2
-        return integrate.quad(temf, 0,theta,limit=2000)[0]
+            #E2
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.122) of Gyro Technical Guide. We have 2 versions:
+            # - The exact, and time-consuming, definition 
+            # - And an analogous "linear + oscillatory" decomposition, as in E1, has been made below.
+            #-------------------
+            def E2E(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temf=lambda x: DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/(R(x,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(x,eps,ka,da,dp,sd,sk,q,s,al)))*(B(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al))**2
+                return integrate.quad(temf, 0,theta,limit=2000)[0]
 
-    # - the coefficient of linear component
-    e2linear=(E2E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E2E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
+            # - the coefficient of linear component
+            e2linear=(E2E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E2E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
 
-    # - oscillatory component
-    Datafe2=np.zeros(Ntheta)
-    for i in range(Ntheta):
-        Datafe2[i]=E2E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e2linear*Theta[i]
-    sple2=splrep(Theta,Datafe2)
-    def E2(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        #linear component
-        temp1=e2linear*theta
-        #oscillating components retaind
-        temp2=splev(theta%(2*np.pi),sple2)
-        return temp1+temp2
+            # - oscillatory component
+            Datafe2=np.zeros(Ntheta)
+            for i in range(Ntheta):
+                Datafe2[i]=E2E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e2linear*Theta[i]
 
-    #E3
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.123) of Gyro Technical Guide. We have 2 versions:
-    # - The exact, and time-consuming, definition 
-    # - And an analogous "linear + oscillatory" decomposition, as in E1, has been made below.
-    #-------------------
-    def E3E(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temf=lambda x: 0.5*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/R(x,eps,ka,da,dp,sd,sk,q,s,al)*BT(x,eps,ka,da,dp,sd,sk,q,s,al)/(BP(x,eps,ka,da,dp,sd,sk,q,s,al))**3
-        return integrate.quad(temf, 0,theta,limit=2000)[0]
+            sple2=splrep(Theta,Datafe2)
 
-    # - the coefficient of linear component
-    e3linear=(E3E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E3E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
+            def E2(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                #linear component
+                temp1=e2linear*theta
+                #oscillating components retaind
+                temp2=splev(theta%(2*np.pi),sple2)
+                return temp1+temp2
 
-    # - oscillatory component
-    Datafe3=np.zeros(Ntheta)
-    for i in range(Ntheta):
-        Datafe3[i]=E3E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e3linear*Theta[i]
-    sple3=splrep(Theta,Datafe3)
-    def E3(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        #linear component
-        temp1=e3linear*theta
-        #oscillating components retaind
-        temp2=splev(theta%(2*np.pi),sple3)
-        return temp1+temp2
+            #E3
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.123) of Gyro Technical Guide. We have 2 versions:
+            # - The exact, and time-consuming, definition 
+            # - And an analogous "linear + oscillatory" decomposition, as in E1, has been made below.
+            #-------------------
+            def E3E(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temf=lambda x: 0.5*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/R(x,eps,ka,da,dp,sd,sk,q,s,al)*BT(x,eps,ka,da,dp,sd,sk,q,s,al)/(BP(x,eps,ka,da,dp,sd,sk,q,s,al))**3
+                return integrate.quad(temf, 0,theta,limit=2000)[0]
 
-    #f^{*}
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.124) of Gyro Technical Guide.
-    # - Careful: this variable is following the EXACT definitions of Ei (e.g. E1, E2, E3).
-    #-------------------
-    fs=(2*np.pi*q*s/eps-E1E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)/eps+al/q**2*E3E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al))/E2E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)
+            # - the coefficient of linear component
+            e3linear=(E3E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)-E3E(0,eps,ka,da,dp,sd,sk,q,s,al))/(2*np.pi)
 
-    #Theta
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.125) of Gyro Technical Guide.
-    # - Careful: this variable is following the APPROXIMATE definitions of Ei (e.g. E1, E2, E3).
-    #-------------------
-    def THETA(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temp=R(theta,eps,ka,da,dp,sd,sk,q,s,al)*BP(theta,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/B(theta,eps,ka,da,dp,sd,sk,q,s,al)*(E1(theta,eps,ka,da,dp,sd,sk,q,s,al)/eps+fs*E2(theta,eps,ka,da,dp,sd,sk,q,s,al)-al/q**2*E3(theta,eps,ka,da,dp,sd,sk,q,s,al))
-        return temp
+            # - oscillatory component
+            Datafe3=np.zeros(Ntheta)
+            for i in range(Ntheta):
+                Datafe3[i]=E3E(Theta[i],eps,ka,da,dp,sd,sk,q,s,al)-e3linear*Theta[i]
 
-    #G_{q}
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.126) of Gyro Technical Guide.
-    #-------------------
-    def GQ(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temp=eps*B(theta,eps,ka,da,dp,sd,sk,q,s,al)/(q*R(theta,eps,ka,da,dp,sd,sk,q,s,al)*BP(theta,eps,ka,da,dp,sd,sk,q,s,al))
-        return temp
+            sple3=splrep(Theta,Datafe3)
 
-    #G_{theta}
-    #-------------------
-    # 07-03-2022 Carlos 
-    # Eq. (2.127) of Gyro Technical Guide.
-    #-------------------
-    def GT(theta,eps,ka,da,dp,sd,sk,q,s,al):
-        temp=B(theta,eps,ka,da,dp,sd,sk,q,s,al)*R(theta,eps,ka,da,dp,sd,sk,q,s,al)/(eps*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al)))*DTL(theta,eps,ka,da,dp,sd,sk,q,s,al)
-        return temp
+            def E3(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                #linear component
+                temp1=e3linear*theta
+                #oscillating components retaind
+                temp2=splev(theta%(2*np.pi),sple3)
+                return temp1+temp2
 
-    #k_{\perp}^{2}/k_{\theta}^{2}
-    #-------------------
-    # 10-03-2022 Carlos 
-    # - Not necessary for zonal flow studies.
-    #-------------------
-    #def KP2(theta,eps,ka,da,dp,sd,sk,q,s,al):
-    #    gq=GQ(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    th=THETA(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    return gq**2*(1+th**2)
+            #f^{*}
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.124) of Gyro Technical Guide.
+            # - Careful: this variable is following the EXACT definitions of Ei (e.g. E1, E2, E3).
+            #-------------------
+            fs=(2*np.pi*q*s/eps-E1E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)/eps+al/q**2*E3E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al))/E2E(2*np.pi,eps,ka,da,dp,sd,sk,q,s,al)
 
-    #g
-    #-------------------
-    # 09-03-2022 Carlos 
-    # This is a factor of the first line of Eq. (2.128) of Gyro Technical Guide.
-    # - Why is "GCOS2" multiplied by 0.5? Due to the finite beta effect.
-    # - Not necessary for zonal flow studies.
-    #-------------------
-    #def G(theta,eps,ka,da,dp,sd,sk,q,s,al):
-    #    return GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al)+0.5*GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al)+THETA(theta,eps,ka,da,dp,sd,sk,q,s,al)*GSIN(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #Theta
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.125) of Gyro Technical Guide.
+            # - Careful: this variable is following the APPROXIMATE definitions of Ei (e.g. E1, E2, E3).
+            #-------------------
+            def THETA(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temp=R(theta,eps,ka,da,dp,sd,sk,q,s,al)*BP(theta,eps,ka,da,dp,sd,sk,q,s,al)*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al))/B(theta,eps,ka,da,dp,sd,sk,q,s,al)*(E1(theta,eps,ka,da,dp,sd,sk,q,s,al)/eps+fs*E2(theta,eps,ka,da,dp,sd,sk,q,s,al)-al/q**2*E3(theta,eps,ka,da,dp,sd,sk,q,s,al))
+                return temp
 
-    #(B G_{\theta}/k_{\perp}^{2})partial_{\theta}(k_{\perp}^{2}/(B G_{\theta}))
-    #-------------------
-    # 10-03-2022 Carlos 
-    # - Not necessary for zonal flow studies.
-    #-------------------
-    #def Q1(theta,eps,ka,da,dp,sd,sk,q,s,al):
-    #    tempf=lambda x: np.log(KP2(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al)*GT(x,eps,ka,da,dp,sd,sk,q,s,al)))
-    #    return misc.derivative(tempf,theta,dx=1e-4,order=3)
-        #tempf=lambda x: KP2(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al)*GT(x,eps,ka,da,dp,sd,sk,q,s,al))
-        #return misc.derivative(tempf,theta,dx=1e-4,order=3)*B(theta,eps,ka,da,dp,sd,sk,q,s,al)*GT(theta,eps,ka,da,dp,sd,sk,q,s,al)/KP2(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #Q1=np.vectorize(Q1)
+            #G_{q}
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.126) of Gyro Technical Guide.
+            #-------------------
+            def GQ(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temp=eps*B(theta,eps,ka,da,dp,sd,sk,q,s,al)/(q*R(theta,eps,ka,da,dp,sd,sk,q,s,al)*BP(theta,eps,ka,da,dp,sd,sk,q,s,al))
+                return temp
 
-    #define Q0
-    #-------------------
-    # 10-03-2022 Carlos 
-    # - Not necessary for zonal flow studies.
-    #-------------------
-    #def Q0(theta,eps,ka,da,dp,sd,sk,q,s,al):
-    #    gq=GQ(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    gt=GT(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    g=G(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    return  al*g*gq*gt**2/(KP2(theta,eps,ka,da,dp,sd,sk,q,s,al)*B(theta,eps,ka,da,dp,sd,sk,q,s,al))
-        
-    #define QOME
-    #-------------------
-    # 10-03-2022 Carlos 
-    # - Not necessary for zonal flow studies.
-    #-------------------
-    #def QOME(theta,eps,ka,da,dp,sd,sk,q,s,al):
-    #    gt=GT(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    b=B(theta,eps,ka,da,dp,sd,sk,q,s,al)
-    #    return  gt**2/b**2
+            #G_{theta}
+            #-------------------
+            # 07-03-2022 Carlos 
+            # Eq. (2.127) of Gyro Technical Guide.
+            #-------------------
+            def GT(theta,eps,ka,da,dp,sd,sk,q,s,al):
+                temp=B(theta,eps,ka,da,dp,sd,sk,q,s,al)*R(theta,eps,ka,da,dp,sd,sk,q,s,al)/(eps*np.sqrt(NR2(theta,eps,ka,da,dp,sd,sk,q,s,al)))*DTL(theta,eps,ka,da,dp,sd,sk,q,s,al)
+                return temp
 
-    #define chi
-    #-------------------
-    # 09-03-2022 Carlos 
-    # What is \chi?
-    # - Dielectric susceptibility: \chi = 1 + 1.6 * q^2 / \eps^{1/2}
-    #-------------------
-    def CHI(eps,ka,da,dp,sd,sk,q,s,al):
-        av1=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)/B(x,eps,ka,da,dp,sd,sk,q,s,al),0,2*np.pi)[0]
-        av2=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al))**3,0,2*np.pi)[0]
-        av3=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)*B(x,eps,ka,da,dp,sd,sk,q,s,al)/NR2(x,eps,ka,da,dp,sd,sk,q,s,al),0,2*np.pi)[0]
-        temp1=av2/av1
-        Lambda=np.linspace(0,1/B(np.pi,eps,ka,da,dp,sd,sk,q,s,al),50)
-        Datatemp=np.zeros(len(Lambda))
-        for i in range(len(Datatemp)):
-            Datatemp[i]=integrate.quad(lambda x: B(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al)*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/np.sqrt(1-Lambda[i]*B(x,eps,ka,da,dp,sd,sk,q,s,al)),-np.pi+1e-4,np.pi-1e-4)[0]
-        sp=splrep(Lambda,1/Datatemp)
-        av4=splint(0,1/B(np.pi,eps,ka,da,dp,sd,sk,q,s,al),sp)
-        temp2=1.5*q*av1*av4
+            #k_{\perp}^{2}/k_{\theta}^{2}
+            #-------------------
+            # 10-03-2022 Carlos 
+            # - Not necessary for zonal flow studies.
+            #-------------------
+            #def KP2(theta,eps,ka,da,dp,sd,sk,q,s,al):
+            #    gq=GQ(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    th=THETA(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    return gq**2*(1+th**2)
 
-        temp=(q*I/eps)**2*av3/av1*(temp1-temp2)
+            #g
+            #-------------------
+            # 09-03-2022 Carlos 
+            # This is a factor of the first line of Eq. (2.128) of Gyro Technical Guide.
+            # - Why is "GCOS2" multiplied by 0.5? Due to the finite beta effect.
+            # - Not necessary for zonal flow studies.
+            #-------------------
+            #def G(theta,eps,ka,da,dp,sd,sk,q,s,al):
+            #    return GCOS1(theta,eps,ka,da,dp,sd,sk,q,s,al)+0.5*GCOS2(theta,eps,ka,da,dp,sd,sk,q,s,al)+THETA(theta,eps,ka,da,dp,sd,sk,q,s,al)*GSIN(theta,eps,ka,da,dp,sd,sk,q,s,al)
 
-        return 1+temp
+            #(B G_{\theta}/k_{\perp}^{2})partial_{\theta}(k_{\perp}^{2}/(B G_{\theta}))
+            #-------------------
+            # 10-03-2022 Carlos 
+            # - Not necessary for zonal flow studies.
+            #-------------------
+            #def Q1(theta,eps,ka,da,dp,sd,sk,q,s,al):
+            #    tempf=lambda x: np.log(KP2(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al)*GT(x,eps,ka,da,dp,sd,sk,q,s,al)))
+            #    return misc.derivative(tempf,theta,dx=1e-4,order=3)
+                #tempf=lambda x: KP2(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al)*GT(x,eps,ka,da,dp,sd,sk,q,s,al))
+                #return misc.derivative(tempf,theta,dx=1e-4,order=3)*B(theta,eps,ka,da,dp,sd,sk,q,s,al)*GT(theta,eps,ka,da,dp,sd,sk,q,s,al)/KP2(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #Q1=np.vectorize(Q1)
 
-#-------------------
-# 09-03-2022 Carlos 
-# Loop in safety factor.
-#-------------------
-#Qarr=np.linspace(0.5,5.5,20)
-#Data=np.zeros(len(Qarr))
-#for i in range(len(Data)):
-    Data[j]=CHI(eps,ka,Darr[j],dp,0.16*0.65/np.sqrt(1-Darr[j]**2),sk,q,s,al)
+            #define Q0
+            #-------------------
+            # 10-03-2022 Carlos 
+            # - Not necessary for zonal flow studies.
+            #-------------------
+            #def Q0(theta,eps,ka,da,dp,sd,sk,q,s,al):
+            #    gq=GQ(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    gt=GT(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    g=G(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    return  al*g*gq*gt**2/(KP2(theta,eps,ka,da,dp,sd,sk,q,s,al)*B(theta,eps,ka,da,dp,sd,sk,q,s,al))
+                
+            #define QOME
+            #-------------------
+            # 10-03-2022 Carlos 
+            # - Not necessary for zonal flow studies.
+            #-------------------
+            #def QOME(theta,eps,ka,da,dp,sd,sk,q,s,al):
+            #    gt=GT(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    b=B(theta,eps,ka,da,dp,sd,sk,q,s,al)
+            #    return  gt**2/b**2
+
+            #define chi
+            #-------------------
+            # 09-03-2022 Carlos 
+            # What is \chi?
+            # - Dielectric susceptibility: \chi = 1 + 1.6 * q^2 / \eps^{1/2}
+            #-------------------
+            def CHI(eps,ka,da,dp,sd,sk,q,s,al):
+                av1=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)/B(x,eps,ka,da,dp,sd,sk,q,s,al),0,2*np.pi)[0]
+                av2=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)/(B(x,eps,ka,da,dp,sd,sk,q,s,al))**3,0,2*np.pi)[0]
+                av3=integrate.quad(lambda x: GT(x,eps,ka,da,dp,sd,sk,q,s,al)*B(x,eps,ka,da,dp,sd,sk,q,s,al)/NR2(x,eps,ka,da,dp,sd,sk,q,s,al),0,2*np.pi)[0]
+                temp1=av2/av1
+                Lambda=np.linspace(0,1/B(np.pi,eps,ka,da,dp,sd,sk,q,s,al),50)
+                Datatemp=np.zeros(len(Lambda))
+                for i in range(len(Datatemp)):
+                    Datatemp[i]=integrate.quad(lambda x: B(x,eps,ka,da,dp,sd,sk,q,s,al)/BP(x,eps,ka,da,dp,sd,sk,q,s,al)*DTL(x,eps,ka,da,dp,sd,sk,q,s,al)/np.sqrt(1-Lambda[i]*B(x,eps,ka,da,dp,sd,sk,q,s,al)),-np.pi+1e-4,np.pi-1e-4)[0]
+                sp=splrep(Lambda,1/Datatemp)
+                av4=splint(0,1/B(np.pi,eps,ka,da,dp,sd,sk,q,s,al),sp)
+                temp2=1.5*q*av1*av4
+
+                temp=(q*I/eps)**2*av3/av1*(temp1-temp2)
+
+                return 1+temp
+
+            #-------------------
+            # 09-03-2022 Carlos 
+            # Loop in safety factor.
+            # - If you want to loop in safety factor, you will have to indent properly the loop!
+            #-------------------
+            #Qarr=np.linspace(0.5,5.5,20)
+            #Data=np.zeros(len(Qarr))
+            #for i in range(len(Data)):
+
+            
+
+            # This is to test if it is necessary to use Haotian's expression (above) or mine (below):
+            # - The conclusion is that my expression can be used (seems more natural).
+            #Data[id_eps,id_ka,id_da]=CHI(Earr[id_eps],Karr[id_ka],Darr[id_da],dp,0.16*0.65/np.sqrt(1-Darr[id_da]**2),sk,q,s,al)
+            Data[id_eps,id_ka,id_da]=CHI(eps,ka,da,dp,0.16*0.65/np.sqrt(1-da**2),sk,q,s,al)
+            #print('------------------------------------')
+            #print('eps vs. Earr[id_eps]: ' + str(eps) + ' vs. ' + str(Earr[id_eps]))
+            #print('ka  vs. Karr[id_ka] : ' + str(ka)  + ' vs. ' + str(Karr[id_ka]))
+            #print('da  vs. Darr[id_da] : ' + str(da)  + ' vs. ' + str(Darr[id_da]))
 
 #-------------------
 # 09-03-2022 Carlos 
@@ -629,7 +684,7 @@ if fig1_bool:
 # 09-03-2022 Carlos 
 # - Plot of triangularity (\delta) vs. dielectric susceptibility or polarization (\chi_{i})
 #-------------------
-fig2_bool = 1
+fig2_bool = 0
 if fig2_bool:
     plt.figure(2)
     font = {'family' : 'serif',  
@@ -648,3 +703,47 @@ if fig2_bool:
     plt.grid(True)
     plt.legend()
     plt.show()
+
+#-------------------
+# 09-03-2022 Carlos 
+# - Plot of 3-loop variables
+#-------------------
+fig3_bool = 1
+if fig3_bool:
+
+    fig = plt.figure()
+    font = {'family' : 'serif',  
+            'color'  : 'black',  
+            'weight' : 'normal',  
+            'size'   : 22,  
+            }
+    font_prop = font_manager.FontProperties(size=20)
+
+    X, Y = np.meshgrid(Earr,Karr)
+
+    color = iter(cm.summer(np.linspace(0, 1, Narr)))
+
+    for id_da_plot in range(Narr):
+        
+        Z = Data[:,:,id_da_plot]
+
+        c = next(color)
+
+        ax = fig.gca(projection = '3d')
+        surf = ax.plot_surface(X, Y, Z, label='$\delta$ = '+str(Darr[id_da_plot]), color=c)
+
+        #this is to solve the legend error (error : 'AttributeError: 'Poly3DCollection' object has no attribute '_edgecolors2d'')
+        surf._facecolors2d=surf._facecolor3d
+        surf._edgecolors2d=surf._edgecolor3d
+
+    ax.set_xlabel('$\epsilon$')
+    ax.set_ylabel('$\kappa$')
+    ax.set_zlabel('$\chi$')
+    ax.legend() 
+
+    #plt.savefig('parametric-study.eps', format='eps')
+    plt.savefig('fig-chi_'+dt_string+'.png', dpi=300)
+    #plt.show()
+
+# Saving data (to do)
+#np.savetxt('data-chi_'+dt_string+'.dat', Data)
