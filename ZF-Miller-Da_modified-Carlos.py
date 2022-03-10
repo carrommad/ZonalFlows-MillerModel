@@ -35,11 +35,13 @@ import matplotlib.font_manager as font_manager
 
 ##################################
 # TO DO:
-# Parametric study of:
+# 1) Parametric study of (3-loop in the 3 variables):
 # - eps
 # - ka
 # - da
-# Do a 3-loop in the 3 variables.
+#
+# 2) Possible update/enhacement to code:
+#  - Introduce small wavelength effects.
 ##################################
 
 #-------------------
