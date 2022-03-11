@@ -47,9 +47,10 @@ print("Date-Time =", dt_string)
 ##################################
 # TO DO:
 # 1) Find physics of current results.
+#    - We are currently using Eq. (2.22) of Haotian's notes (long wavelength limit). 
 #
 # 2) Possible update/enhacement to code:
-#  - Introduce small wavelength effects, Eq. (2.5) of Haotian's notes.
+#    - Introduce small wavelength effects, Eq. (2.5) of Haotian's notes.
 ##################################
 
 #-------------------
