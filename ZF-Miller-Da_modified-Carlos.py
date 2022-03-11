@@ -275,7 +275,7 @@ def COSU(theta,eps,ka,da,dp,sd,sk,q,s,al):
 # 07-03-2022 Carlos 
 # Loop in parameter: triangularity.
 #-------------------
-Narr=10
+Narr=20
 #Qarr=np.linspace(0.5,5.5,Narr)
 
 # eps (aspect ratio) values to loop
