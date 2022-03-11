@@ -5,14 +5,35 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import numpy as np
 import matplotlib.font_manager as font_manager
 
+import h5py
 
-# To load an array
-# load array
-Data = np.loadtxt('data.npy')
-# print the array
-#print(data)
+# read from a data set
+filename = 'data2022.03.11-13.16.37'
+hdf = h5py.File('data/'+filename+'.h5','r')
+
+ls = list(hdf.keys())
+print('List of datasets in this file: \n', ls)
+
+temp = hdf.get('Earr')
+Earr = np.array(temp)
+
+temp = hdf.get('Karr')
+Karr = np.array(temp)
+
+temp = hdf.get('Darr')
+Darr = np.array(temp)
+
+temp = hdf.get('Chi')
+Chi  = np.array(temp)
+
+Narr = len(Earr)
+print('Narr = ', Narr)
+
+print('Shape of dataset1: \n', Chi.shape)
+hdf.close()
 
 
+# plot figures
 fig = plt.figure()
 font = {'family' : 'serif',  
         'color'  : 'black',  
@@ -23,13 +44,13 @@ font_prop = font_manager.FontProperties(size=20)
 
 X, Y = np.meshgrid(Earr,Karr)
 
-color = iter(cm.summer(np.linspace(0, 1, Narr)))
+color = iter(cm.summer(np.linspace(0,1, Narr)))
 
 ax = plt.axes(projection ='3d')
 
 for id_da_plot in range(Narr):
     
-    Z = Data[:,:,id_da_plot]
+    Z = Chi[:,:,id_da_plot]
 
     c = next(color)
     
@@ -44,4 +65,6 @@ ax.set_ylabel('$\kappa$')
 ax.set_zlabel('$\chi$')
 ax.legend() 
 
+#plt.savefig('parametric-study.eps', format='eps')
+#plt.savefig('figures/fig-chi_'+filename+'.png', dpi=300)
 plt.show()

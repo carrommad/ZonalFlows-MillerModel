@@ -3,6 +3,8 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
+import h5py
+
 x = np.linspace(-3, 3, 256)
 y = np.linspace(-3, 3, 256)
 X, Y = np.meshgrid(x, y)
@@ -31,3 +33,9 @@ ax.set_zlabel('$\chi$', fontsize=30, rotation=60)
 ax.legend() 
 
 plt.show()
+
+
+# create hdf5 data structure
+with h5py.File('name.h5','w') as hdf:   
+    hdf.create_dataset('dataset1', data=x)
+    hdf.create_dataset('dataset2', data=y)

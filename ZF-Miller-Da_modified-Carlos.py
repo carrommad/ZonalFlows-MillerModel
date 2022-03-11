@@ -21,15 +21,16 @@ import os
 import time
 import matplotlib.font_manager as font_manager
 
-
 from datetime import datetime
+
+import h5py
 
 # datetime object containing current date and time
 now = datetime.now()
 #print("now =", now)
 
 # dd/mm/YY-H:M:S
-dt_string = now.strftime("%Y.%m.%d-%H.%M.%S")
+dt_string = now.strftime("%Y-%m-%d_%H-%M-%S")
 print("Date-Time =", dt_string)	
 
 #t0=time.time()
@@ -279,7 +280,7 @@ def COSU(theta,eps,ka,da,dp,sd,sk,q,s,al):
 # 07-03-2022 Carlos 
 # Loop in parameter: triangularity.
 #-------------------
-Narr=20
+Narr=5
 #Qarr=np.linspace(0.5,5.5,Narr)
 
 # eps (aspect ratio) values to loop
@@ -753,8 +754,14 @@ if fig3_bool:
     plt.savefig('figures/fig-chi_'+dt_string+'.png', dpi=300)
     #plt.show()
 
-# Saving data (to do)
-np.save('data/data-chi_'+dt_string, Data)
+# create hdf5 data structure
+with h5py.File('data/data_'+dt_string+'.h5','w') as hdf:  
+
+    hdf.create_dataset('Earr', data=Earr)
+    hdf.create_dataset('Karr', data=Karr)
+    hdf.create_dataset('Darr', data=Darr)
+
+    hdf.create_dataset('Chi', data=Data)
 
 # To load an array
 # load array
