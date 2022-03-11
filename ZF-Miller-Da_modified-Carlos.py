@@ -46,15 +46,10 @@ print("Date-Time =", dt_string)
 
 ##################################
 # TO DO:
-# 1) Parametric study of (3-loop in the 3 variables):
-# - eps
-# - ka
-# - da
+# 1) Find physics of current results.
 #
 # 2) Possible update/enhacement to code:
-#  - Introduce small wavelength effects.
-#
-# 3) Finish "Save data" section.
+#  - Introduce small wavelength effects, Eq. (2.5) of Haotian's notes.
 ##################################
 
 #-------------------
@@ -280,7 +275,7 @@ def COSU(theta,eps,ka,da,dp,sd,sk,q,s,al):
 # 07-03-2022 Carlos 
 # Loop in parameter: triangularity.
 #-------------------
-Narr=5
+Narr=10
 #Qarr=np.linspace(0.5,5.5,Narr)
 
 # eps (aspect ratio) values to loop
@@ -735,7 +730,7 @@ if fig3_bool:
 
     for id_da_plot in range(Narr):
         
-        Z = Data[:,:,id_da_plot]
+        Z = 1./Data[:,:,id_da_plot]
 
         c = next(color)
         
@@ -747,7 +742,7 @@ if fig3_bool:
 
     ax.set_xlabel('$\epsilon$')
     ax.set_ylabel('$\kappa$')
-    ax.set_zlabel('$\chi$')
+    ax.set_zlabel('$\chi^{-1}$')
     ax.legend() 
 
     #plt.savefig('parametric-study.eps', format='eps')

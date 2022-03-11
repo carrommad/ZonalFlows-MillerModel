@@ -8,7 +8,7 @@ import matplotlib.font_manager as font_manager
 import h5py
 
 # read from a data set
-filename = 'data2022.03.11-13.16.37'
+filename = 'data_2022-03-11_13-31-52'
 hdf = h5py.File('data/'+filename+'.h5','r')
 
 ls = list(hdf.keys())
@@ -48,9 +48,11 @@ color = iter(cm.summer(np.linspace(0,1, Narr)))
 
 ax = plt.axes(projection ='3d')
 
-for id_da_plot in range(Narr):
+step_da_plot = 1
+
+for id_da_plot in range(0,Narr,step_da_plot):
     
-    Z = Chi[:,:,id_da_plot]
+    Z = 1./Chi[:,:,id_da_plot]
 
     c = next(color)
     
@@ -62,7 +64,7 @@ for id_da_plot in range(Narr):
 
 ax.set_xlabel('$\epsilon$')
 ax.set_ylabel('$\kappa$')
-ax.set_zlabel('$\chi$')
+ax.set_zlabel('$\chi^{-1}$')
 ax.legend() 
 
 #plt.savefig('parametric-study.eps', format='eps')
